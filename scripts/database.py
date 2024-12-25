@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 # Ruta a la base de datos
 DB_PATH = 'database/fifa_esports.db'
@@ -6,6 +7,54 @@ DB_PATH = 'database/fifa_esports.db'
 # Crear una conexión con la base de datos
 def get_connection():
     return sqlite3.connect(DB_PATH)
+
+# Crear las tablas si no existen
+def setup_database():
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Crear tabla Matches
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            league TEXT,
+            local_player TEXT,
+            visitor_player TEXT,
+            local_team TEXT,
+            visitor_team TEXT,
+            local_score INTEGER,
+            visitor_score INTEGER,
+            match_date TEXT
+        )
+    ''')
+    
+    # Crear tabla Events
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_id INTEGER,
+            event_type TEXT,
+            minute INTEGER,
+            team TEXT,
+            FOREIGN KEY(match_id) REFERENCES Matches(id)
+        )
+    ''')
+    
+    # Crear tabla Statistics
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Statistics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_id INTEGER,
+            stat_type TEXT,
+            local_value INTEGER,
+            visitor_value INTEGER,
+            FOREIGN KEY(match_id) REFERENCES Matches(id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    print("Base de datos configurada con éxito.")
 
 # Insertar un partido en la tabla Matches
 def insert_match(league, local_player, visitor_player, local_team, visitor_team, local_score, visitor_score, match_date):
