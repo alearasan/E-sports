@@ -30,33 +30,35 @@ def manejar_panel_cookies(driver):
         print("El panel de cookies no apareció o ya fue aceptado.")
 
 def convertir_fecha(fecha_texto):
-    """Convierte la fecha extraída en un formato estándar (YYYY-MM-DD)."""
+    """Convierte la fecha y hora extraídas en formatos estándar."""
     from datetime import datetime
     try:
         # Manejar el formato 'YYYY/MM/DD HH:MM'
         fecha_obj = datetime.strptime(fecha_texto, "%Y/%m/%d %H:%M")
-        return fecha_obj.strftime("%Y-%m-%d")
+        fecha_formato = fecha_obj.strftime("%Y-%m-%d")  # Formato de fecha
+        hora_formato = fecha_obj.strftime("%H:%M:%S")  # Formato de hora
+        return fecha_formato, hora_formato
     except ValueError:
         print(f"Formato de fecha desconocido: {fecha_texto}")
-        return fecha_texto  # Devuelve la fecha original si no se puede convertir
+        return fecha_texto, None  # Devuelve la fecha original si no se puede convertir
 
-    
 def extraer_fecha_partido(driver):
-    """Extrae la fecha del partido desde el selector especificado."""
+    """Extrae la fecha y hora del partido desde el selector especificado."""
     try:
         fecha_elemento = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "body > div.page > div.page-main > div.my-3.my-md-5 > div > div.row.justify-content-md-center.pt-3 > div.col-md-6.text-center > h1 > span > span:nth-child(4)"))
         )
         fecha_texto = fecha_elemento.text.strip()
-        # Convertir fecha a un formato estándar (por ejemplo, YYYY-MM-DD)
-        fecha_formato = convertir_fecha(fecha_texto)
-        return fecha_formato
+        fecha, hora = convertir_fecha(fecha_texto)
+        print(f"Fecha extraída: {fecha}, Hora extraída: {hora}")
+        return fecha, hora
     except TimeoutException:
         print("No se pudo encontrar la fecha del partido.")
-        return None
+        return None, None
     except Exception as e:
         print(f"Error al extraer la fecha del partido: {e}")
-        return None
+        return None, None
+
     
 def extraer_liga(driver):
     """Extrae el nombre de la liga desde el selector especificado."""
@@ -84,7 +86,7 @@ def separar_equipo_y_jugador(texto):
         return equipo, jugador
     return texto, None
 
-def extraer_datos_tabla(driver, league, match_date):
+def extraer_datos_tabla(driver, league, match_date, match_time):
     """Extrae datos de la tabla, imprime los valores y guarda en la base de datos."""
     try:
         tabla = WebDriverWait(driver, 10).until(
@@ -102,7 +104,6 @@ def extraer_datos_tabla(driver, league, match_date):
                 if i == 0:  # Primera fila: equipo y jugador
                     local_team, local_player = separar_equipo_y_jugador(columnas[0].text.strip())
                     visitor_team, visitor_player = separar_equipo_y_jugador(columnas[2].text.strip())
-                    # Imprimir equipos y jugadores
                     print(f"Equipo: Local = {local_team}, Visitante = {visitor_team}")
                     print(f"Jugador: Local = {local_player}, Visitante = {visitor_player}")
                 else:  # Otras filas: estadísticas
@@ -110,7 +111,6 @@ def extraer_datos_tabla(driver, league, match_date):
                     stat_type = columnas[1].text.strip()
                     visitor_value = limpiar_valor(columnas[2].text.strip())
                     stats.append((stat_type, local_value, visitor_value))
-                    # Imprimir estadísticas
                     print(f"{stat_type}: Local = {local_value}, Visitante = {visitor_value}")
 
         # Insertar el partido en la base de datos
@@ -124,7 +124,7 @@ def extraer_datos_tabla(driver, league, match_date):
             visitor_team=visitor_team,
             local_score=int(local_score),
             visitor_score=int(visitor_score),
-            match_date=match_date
+            match_date=f"{match_date} {match_time}"
         )
         print(f"Partido insertado en la base de datos con ID: {match_id}")
 
@@ -136,6 +136,7 @@ def extraer_datos_tabla(driver, league, match_date):
         print("No se pudo encontrar la tabla.")
     except Exception as e:
         print(f"Error al procesar la tabla: {e}")
+
 
 
 
@@ -188,20 +189,21 @@ def scrape_data():
                     print("Liga no encontrada. Saltando partido.")
                     continue
 
-                # Extraer la fecha del partido
-                match_date = extraer_fecha_partido(driver)
-                if not match_date:
-                    print("Fecha no encontrada. Saltando partido.")
+                # Extraer la fecha y hora del partido
+                match_date, match_time = extraer_fecha_partido(driver)
+                if not match_date or not match_time:
+                    print("Fecha u hora no encontradas. Saltando partido.")
                     continue
 
                 # Extraer y guardar los datos del partido
-                extraer_datos_tabla(driver, league, match_date)
+                extraer_datos_tabla(driver, league, match_date, match_time)
             except StaleElementReferenceException as e:
                 print(f"Error de referencia obsoleta al acceder al partido: {e}")
             except Exception as e:
                 print(f"Error general al procesar el partido {url_partido}: {e}")
     finally:
         driver.quit()
+
 
 
 if __name__ == "__main__":
