@@ -58,6 +58,22 @@ def extraer_fecha_partido(driver):
         print(f"Error al extraer la fecha del partido: {e}")
         return None
     
+def extraer_liga(driver):
+    """Extrae el nombre de la liga desde el selector especificado."""
+    try:
+        liga_elemento = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "body > div.page > div.page-main > div.my-3.my-md-5 > div > nav > ol > li:nth-child(2) > a"))
+        )
+        liga_texto = liga_elemento.text.strip()
+        print(f"Liga extraída: {liga_texto}")
+        return liga_texto
+    except TimeoutException:
+        print("No se pudo encontrar la liga.")
+        return None
+    except Exception as e:
+        print(f"Error al extraer la liga: {e}")
+        return None
+
 # Extraer equipo y jugador
 def separar_equipo_y_jugador(texto):
     """Extrae el equipo y el jugador del formato 'Equipo (Jugador)'."""
@@ -87,8 +103,8 @@ def extraer_datos_tabla(driver, league, match_date):
                     local_team, local_player = separar_equipo_y_jugador(columnas[0].text.strip())
                     visitor_team, visitor_player = separar_equipo_y_jugador(columnas[2].text.strip())
                     # Imprimir equipos y jugadores
-                    print(f"Local: Equipo = {local_team}, Jugador = {local_player}")
-                    print(f"Visitante: Equipo = {visitor_team}, Jugador = {visitor_player}")
+                    print(f"Equipo: Local = {local_team}, Visitante = {visitor_team}")
+                    print(f"Jugador: Local = {local_player}, Visitante = {visitor_player}")
                 else:  # Otras filas: estadísticas
                     local_value = limpiar_valor(columnas[0].text.strip())
                     stat_type = columnas[1].text.strip()
@@ -165,15 +181,18 @@ def scrape_data():
             try:
                 print(f"\nAccediendo al partido: {url_partido}")
                 driver.get(url_partido)
-                
+
+                # Extraer la liga
+                league = extraer_liga(driver)
+                if not league:
+                    print("Liga no encontrada. Saltando partido.")
+                    continue
+
                 # Extraer la fecha del partido
                 match_date = extraer_fecha_partido(driver)
                 if not match_date:
                     print("Fecha no encontrada. Saltando partido.")
                     continue
-
-                # Agregar detalles adicionales como la liga
-                league = "La Liga"  # Por ejemplo, puedes modificarlo según el contexto
 
                 # Extraer y guardar los datos del partido
                 extraer_datos_tabla(driver, league, match_date)
