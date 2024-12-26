@@ -1,0 +1,28 @@
+# Archivos de configuración sensibles
+.env
+
+# Bases de datos
+*.db
+*.sqlite3
+
+# Archivos de logs
+*.log
+
+# Archivos de caché y temporales de Python
+*.pyc
+__pycache__/
+
+# Archivos generados por el sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de entornos virtuales de Python
+venv/
+*.egg-info/
+pip-log.txt
+
+# Archivos de navegador o herramientas externas
+selenium-screenshot.png
+
+# Archivos que no deseas incluir manualmente
+database/fifa_esports.db
