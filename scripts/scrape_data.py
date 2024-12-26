@@ -205,43 +205,60 @@ def obtener_enlaces_partidos(driver):
 
 # Scraping principal
 def scrape_data():
-    """Realiza el scraping de la página principal y de cada partido."""
+    """Realiza el scraping de la página principal y de cada partido con soporte para paginación."""
     setup_database()  # Asegúrate de que la base de datos está configurada
 
     driver = inicializar_driver()
     try:
-        driver.get(URL_DE_LA_PAGINA)
-        manejar_panel_cookies(driver)
+        page = 1
+        while True:
+            # Construir la URL para la página actual
+            pagina_url = f"{URL_DE_LA_PAGINA}/p.{page}"
+            print(f"\nAccediendo a la página: {pagina_url}")
+            driver.get(pagina_url)
+            
+            # Manejar el panel de cookies en la primera carga
+            if page == 1:
+                manejar_panel_cookies(driver)
 
-        enlaces_partidos = obtener_enlaces_partidos(driver)
-        print(f"\nEnlaces encontrados: {enlaces_partidos}")
+            # Obtener los enlaces de los partidos en la página
+            enlaces_partidos = obtener_enlaces_partidos(driver)
+            if not enlaces_partidos:
+                print("No se encontraron más enlaces. Finalizando paginación.")
+                break  # Salir del bucle si no hay más enlaces
+            
+            print(f"\nEnlaces encontrados en la página {page}: {enlaces_partidos}")
 
-        for url_partido in enlaces_partidos:
-            try:
-                print(f"\nAccediendo al partido: {url_partido}")
-                driver.get(url_partido)
+            # Procesar cada enlace de partido
+            for url_partido in enlaces_partidos:
+                try:
+                    print(f"\nAccediendo al partido: {url_partido}")
+                    driver.get(url_partido)
 
-                # Extraer la liga
-                league = extraer_liga(driver)
-                if not league:
-                    print("Liga no encontrada. Saltando partido.")
-                    continue
+                    # Extraer la liga
+                    league = extraer_liga(driver)
+                    if not league:
+                        print("Liga no encontrada. Saltando partido.")
+                        continue
 
-                # Extraer la fecha y hora del partido
-                match_date, match_time = extraer_fecha_partido(driver)
-                if not match_date or not match_time:
-                    print("Fecha u hora no encontradas. Saltando partido.")
-                    continue
+                    # Extraer la fecha y hora del partido
+                    match_date, match_time = extraer_fecha_partido(driver)
+                    if not match_date or not match_time:
+                        print("Fecha u hora no encontradas. Saltando partido.")
+                        continue
 
-                # Extraer y guardar los datos del partido
-                match_id = extraer_datos_tabla(driver, league, match_date, match_time)
+                    # Extraer y guardar los datos del partido
+                    match_id = extraer_datos_tabla(driver, league, match_date, match_time)
 
-                # Extraer y guardar los eventos del partido
-                extraer_eventos(driver, match_id)
-            except StaleElementReferenceException as e:
-                print(f"Error de referencia obsoleta al acceder al partido: {e}")
-            except Exception as e:
-                print(f"Error general al procesar el partido {url_partido}: {e}")
+                    # Extraer y guardar los eventos del partido
+                    extraer_eventos(driver, match_id)
+                except StaleElementReferenceException as e:
+                    print(f"Error de referencia obsoleta al acceder al partido: {e}")
+                except Exception as e:
+                    print(f"Error general al procesar el partido {url_partido}: {e}")
+
+            # Incrementar el número de página
+            page += 1
     finally:
         driver.quit()
 
