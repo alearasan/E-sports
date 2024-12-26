@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
-from database import setup_database, insert_match, insert_statistic
+from database import setup_database, insert_match, insert_statistic, insert_event
 
 # Cargar variables de entorno
 load_dotenv()
@@ -76,6 +76,45 @@ def extraer_liga(driver):
         print(f"Error al extraer la liga: {e}")
         return None
 
+def extraer_eventos(driver, match_id):
+    """Extrae los eventos del partido y los guarda en la base de datos."""
+    try:
+        # Localizar la lista de eventos
+        eventos = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.list-group > li"))
+        )
+
+        for evento in eventos:
+            try:
+                # Extraer el texto del evento
+                texto_evento = evento.text.strip()
+
+                # Determinar el equipo (local o visitante) basándose en las clases
+                equipo = "Local" if "bl-home" in evento.get_attribute("class") else "Visitante" if "bl-away" in evento.get_attribute("class") else "N/A"
+
+                # Extraer el minuto, tipo de evento y detalles adicionales
+                match_evento = re.match(r"(\d+)'\s+-\s+(.+?)\s+-\s+\((.+?)\)", texto_evento)
+                if match_evento:
+                    minuto = int(match_evento.group(1))
+                    tipo_evento = match_evento.group(2).strip()
+                    detalle_evento = match_evento.group(3).strip()
+                else:
+                    # Si no se ajusta al formato, continuar con el siguiente
+                    print(f"Evento ignorado: {texto_evento}")
+                    continue
+
+                # Imprimir el evento extraído
+                print(f"Match id: {match_id} Evento: Minuto = {minuto}, Tipo = {tipo_evento}, Equipo = {equipo}, Detalle = {detalle_evento}")
+
+                # Insertar el evento en la base de datos
+                insert_event(match_id, tipo_evento, minuto, equipo)
+            except Exception as e:
+                print(f"Error al procesar un evento: {e}")
+    except TimeoutException:
+        print("No se pudo encontrar la lista de eventos.")
+    except Exception as e:
+        print(f"Error al extraer los eventos: {e}")
+
 # Extraer equipo y jugador
 def separar_equipo_y_jugador(texto):
     """Extrae el equipo y el jugador del formato 'Equipo (Jugador)'."""
@@ -132,13 +171,12 @@ def extraer_datos_tabla(driver, league, match_date, match_time):
         for stat_type, local_value, visitor_value in stats:
             insert_statistic(match_id, stat_type, int(local_value), int(visitor_value))
 
+        return match_id
+    
     except TimeoutException:
         print("No se pudo encontrar la tabla.")
     except Exception as e:
         print(f"Error al procesar la tabla: {e}")
-
-
-
 
 # Función para limpiar valores repetidos
 def limpiar_valor(valor):
@@ -196,7 +234,10 @@ def scrape_data():
                     continue
 
                 # Extraer y guardar los datos del partido
-                extraer_datos_tabla(driver, league, match_date, match_time)
+                match_id = extraer_datos_tabla(driver, league, match_date, match_time)
+
+                # Extraer y guardar los eventos del partido
+                extraer_eventos(driver, match_id)
             except StaleElementReferenceException as e:
                 print(f"Error de referencia obsoleta al acceder al partido: {e}")
             except Exception as e:
