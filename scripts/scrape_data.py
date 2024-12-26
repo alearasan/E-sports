@@ -93,27 +93,29 @@ def extraer_eventos(driver, match_id):
                 equipo = "Local" if "bl-home" in evento.get_attribute("class") else "Visitante" if "bl-away" in evento.get_attribute("class") else "N/A"
 
                 # Extraer el minuto, tipo de evento y detalles adicionales
-                match_evento = re.match(r"(\d+)'\s+-\s+(.+?)\s+-\s+\((.+?)\)", texto_evento)
+                match_evento = re.match(r"(\d+(\+\d+)?)'\s+-\s+(.+?)\s+-\s+\((.+?)\)", texto_evento)
                 if match_evento:
-                    minuto = int(match_evento.group(1))
-                    tipo_evento = match_evento.group(2).strip()
-                    detalle_evento = match_evento.group(3).strip()
+                    minuto_completo = match_evento.group(1)  # Ejemplo: "12+1"
+                    minuto_base = int(minuto_completo.split("+")[0])  # Extraer solo "12"
+                    tipo_evento = match_evento.group(3).strip()
+                    detalle_evento = match_evento.group(4).strip()
                 else:
                     # Si no se ajusta al formato, continuar con el siguiente
                     print(f"Evento ignorado: {texto_evento}")
                     continue
 
                 # Imprimir el evento extraído
-                print(f"Match id: {match_id} Evento: Minuto = {minuto}, Tipo = {tipo_evento}, Equipo = {equipo}, Detalle = {detalle_evento}")
+                print(f"Match id: {match_id} Evento: Minuto = {minuto_base}, Tipo = {tipo_evento}, Equipo = {equipo}, Detalle = {detalle_evento}")
 
                 # Insertar el evento en la base de datos
-                insert_event(match_id, tipo_evento, minuto, equipo)
+                insert_event(match_id, tipo_evento, minuto_base, equipo)
             except Exception as e:
                 print(f"Error al procesar un evento: {e}")
     except TimeoutException:
         print("No se pudo encontrar la lista de eventos.")
     except Exception as e:
         print(f"Error al extraer los eventos: {e}")
+
 
 # Extraer equipo y jugador
 def separar_equipo_y_jugador(texto):
