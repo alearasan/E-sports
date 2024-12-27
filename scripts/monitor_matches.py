@@ -20,11 +20,21 @@ def inicializar_driver():
 load_dotenv()
 URL_MONITOR = os.getenv("URL_MONITOR")
 
-# Ligas de interés
-LIGAS_INTERES = [
-    "Esoccer Battle - 8 mins play",
-    "Esoccer GT Leagues – 12 mins play"
-]
+# Ligas de interés y sus rangos de minutos
+LIGAS_MINUTOS = {
+    "Esoccer Battle - 8 mins play": (0, 8),
+    "Esoccer GT Leagues – 12 mins play": (0, 12)
+}
+
+def es_minuto_valido(minuto_texto, rango_minutos):
+    """Valida si el minuto es un número y está dentro del rango permitido."""
+    try:
+        minuto = int(minuto_texto)  # Intentar convertir el texto a número
+        return rango_minutos[0] <= minuto <= rango_minutos[1]
+    except ValueError:
+        # Si no se puede convertir a entero, no es un minuto válido
+        print(f"Minuto inválido detectado: {minuto_texto}")
+        return False
 
 def obtener_liga(driver):
     """
@@ -141,7 +151,8 @@ def recolectar_partidos_interes(driver):
             try:
                 liga = fila.find_element(By.CSS_SELECTOR, "td.league_n > a").text.strip()
                 minuto = fila.find_element(By.CSS_SELECTOR, "span.race-time").text.strip().replace("'", "")
-                if liga in LIGAS_INTERES and 0 < int(minuto) < 12:
+                # Verificar si la liga es de interés y si el minuto es válido
+                if liga in LIGAS_MINUTOS and es_minuto_valido(minuto, LIGAS_MINUTOS[liga]):
                     enlace = fila.find_element(By.CSS_SELECTOR, "td:nth-child(4) > a").get_attribute("href")
                     cuotas = extraer_cuotas_desde_fila(fila)
                     partidos.append({"liga": liga, "minuto": minuto, "enlace": enlace, "cuotas": cuotas})
