@@ -1,219 +1,179 @@
-from dotenv import load_dotenv
 import os
+import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from scrape_data import (
-    inicializar_driver,
-    manejar_panel_cookies,
-    extraer_liga,
-    extraer_fecha_partido,
-    extraer_eventos,
-)
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from dotenv import load_dotenv
+from scrape_data import manejar_panel_cookies, separar_equipo_y_jugador, limpiar_valor
+
+def inicializar_driver():
+    """Inicializa y configura el driver de Selenium."""
+    options = webdriver.ChromeOptions()
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    return webdriver.Chrome(options=options)
 
 # Cargar variables de entorno
 load_dotenv()
 URL_MONITOR = os.getenv("URL_MONITOR")
 
-def extraer_datos_tabla(driver, league, match_date, match_time):
-    """
-    Extrae datos de la tabla del partido y los imprime en consola.
-    """
+# Ligas de interés
+LIGAS_INTERES = [
+    "Esoccer Battle - 8 mins play",
+    "Esoccer GT Leagues – 12 mins play"
+]
+
+def extraer_datos_tabla(driver):
+    """Extrae datos de la tabla del partido."""
     try:
-        tabla = WebDriverWait(driver, 10).until(
+        tabla = WebDriverWait(driver, 3).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "table.table.table-sm > tbody"))
         )
         filas = tabla.find_elements(By.TAG_NAME, "tr")
-
-        local_team, local_player = None, None
-        visitor_team, visitor_player = None, None
-        stats = []
 
         for i, fila in enumerate(filas):
             columnas = fila.find_elements(By.TAG_NAME, "td")
             if len(columnas) == 3:
                 if i == 0:  # Primera fila: equipo y jugador
-                    local_team = columnas[0].text.strip()
-                    visitor_team = columnas[2].text.strip()
+                    local_team, local_player = separar_equipo_y_jugador(columnas[0].text.strip())
+                    visitor_team, visitor_player = separar_equipo_y_jugador(columnas[2].text.strip())
                     print(f"Equipo: Local = {local_team}, Visitante = {visitor_team}")
+                    print(f"Jugador: Local = {local_player}, Visitante = {visitor_player}")
                 else:  # Filas de estadísticas
-                    local_value = columnas[0].text.strip()
+                    local_value = limpiar_valor(columnas[0].text.strip())
                     stat_type = columnas[1].text.strip()
-                    visitor_value = columnas[2].text.strip()
-                    stats.append((stat_type, local_value, visitor_value))
+                    visitor_value = limpiar_valor(columnas[2].text.strip())
                     print(f"{stat_type}: Local = {local_value}, Visitante = {visitor_value}")
 
     except TimeoutException:
-        print("No se pudo encontrar la tabla de datos del partido.")
+        print("No se encontró la tabla de datos del partido.")
     except Exception as e:
         print(f"Error al extraer datos de la tabla: {e}")
 
-def extraer_eventos(driver, match_id=None):
-    """
-    Extrae los eventos de la página y los imprime en consola.
-    """
+def extraer_eventos(driver):
+    """Extrae los eventos de la página."""
     try:
-        eventos = WebDriverWait(driver, 10).until(
+        eventos = WebDriverWait(driver, 3).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.list-group > li"))
         )
-
         for evento in eventos:
             texto_evento = evento.text.strip()
-
-            # Determinar el equipo (local o visitante) basándose en las clases
-            equipo = "Local" if "bl-home" in evento.get_attribute("class") else "Visitante" if "bl-away" in evento.get_attribute("class") else "N/A"
-
+            equipo = (
+                "Local" if "bl-home" in evento.get_attribute("class")
+                else "Visitante" if "bl-away" in evento.get_attribute("class")
+                else "N/A"
+            )
             print(f"Evento: {texto_evento} | Equipo: {equipo}")
-
     except TimeoutException:
-        print("No se pudo encontrar la lista de eventos.")
+        print("No se encontraron eventos.")
     except Exception as e:
         print(f"Error al extraer eventos: {e}")
 
-
-def extraer_info_partidos(driver):
-    """
-    Extrae la información de todos los partidos en la página haciendo clic en el enlace correspondiente de cada fila.
-    """
+def recolectar_partidos_interes(driver):
+    """Recolecta enlaces de partidos de interés desde la página."""
+    enlaces_partidos = []
     try:
-        while True:  # Si hay múltiples páginas, agrega un bucle aquí
-            # Esperar a que la tabla esté presente
-            tabla_partidos = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "tbody"))
-            )
-            filas = tabla_partidos.find_elements(By.TAG_NAME, "tr")
-
-            print(f"Se encontraron {len(filas)} filas en la tabla.")
-
-            # Recorrer todas las filas y hacer clic en el enlace de cada una
-            for i, fila in enumerate(filas):
-                try:
-                    # Volver a encontrar las filas para evitar elementos "stale"
-                    filas_actualizadas = driver.find_elements(By.TAG_NAME, "tr")
-                    fila_actual = filas_actualizadas[i]
-
-                    # Localizar el enlace dentro de la fila actualizada
-                    enlace = fila_actual.find_element(By.CSS_SELECTOR, "td:nth-child(4) > a")
-                    enlace_texto = enlace.text.strip()
-                    enlace_href = enlace.get_attribute("href")
-                    print(f"\n[{i+1}] Haciendo clic en el enlace: {enlace_texto} ({enlace_href})")
-
-                    # Hacer clic en el enlace
-                    enlace.click()
-
-                    # Esperar a que la nueva página cargue
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "table.table.table-sm"))
-                    )
-
-                    # Extraer información de la nueva página
-                    league = extraer_liga(driver)
-                    print(f"Liga: {league}")
-                    
-                    match_date, match_time = extraer_fecha_partido(driver)
-                    print(f"Fecha: {match_date}, Hora: {match_time}")
-                    
-                    print("Datos del partido:")
-                    extraer_datos_tabla(driver, league, match_date, match_time)
-
-                    print("Eventos del partido:")
-                    extraer_eventos(driver, match_id=None)
-
-                    # Volver a la página anterior
-                    driver.get(URL_MONITOR)
-
-                    # Esperar a que la tabla se recargue
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "tbody"))
-                    )
-                except NoSuchElementException:
-                    print(f"Enlace no encontrado en la fila {i+1}.")
-                except TimeoutException:
-                    print(f"Tiempo de espera agotado al cargar la información del partido en la fila {i+1}.")
-                except Exception as e:
-                    print(f"Error procesando la fila {i+1}: {e}")
-    except TimeoutException:
-        print("No se pudo cargar la tabla de partidos.")
-    except Exception as e:
-        print(f"Error al extraer partidos: {e}")
-    """
-    Extrae la información de todos los partidos en la página haciendo clic en el enlace correspondiente de cada fila.
-    """
-    try:
-        # Esperar a que la tabla esté presente
-        tabla_partidos = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "tbody"))
-        )
-        filas = tabla_partidos.find_elements(By.TAG_NAME, "tr")
-
-        print(f"Se encontraron {len(filas)} filas en la tabla.")
-
-        # Recorrer todas las filas y hacer clic en el enlace de cada una
-        for i, fila in enumerate(filas):
+        filas = driver.find_elements(By.CSS_SELECTOR, "tbody > tr")
+        for fila in filas:
             try:
-                # Localizar el enlace dentro de la fila (columna específica)
-                enlace = fila.find_element(By.CSS_SELECTOR, "td:nth-child(4) > a")
-                enlace_texto = enlace.text.strip()
-                enlace_href = enlace.get_attribute("href")
-                print(f"\n[{i+1}] Haciendo clic en el enlace: {enlace_texto} ({enlace_href})")
-
-                # Hacer clic en el enlace
-                enlace.click()
-
-                # Esperar a que la nueva página cargue
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.table.table-sm"))
-                )
-
-                # Extraer información de la nueva página
-                league = extraer_liga(driver)
-                print(f"Liga: {league}")
-                
-                match_date, match_time = extraer_fecha_partido(driver)
-                print(f"Fecha: {match_date}, Hora: {match_time}")
-                
-                print("Datos del partido:")
-                extraer_datos_tabla(driver, league, match_date, match_time)
-
-                print("Eventos del partido:")
-                extraer_eventos(driver, match_id=None)
-
-                # Volver a la página anterior
-                driver.get(URL_MONITOR)
-
-                # Esperar a que la tabla se recargue
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "tbody"))
-                )
+                liga = fila.find_element(By.CSS_SELECTOR, "td.league_n > a").text.strip()
+                if liga in LIGAS_INTERES:
+                    enlace = fila.find_element(By.CSS_SELECTOR, "td:nth-child(4) > a").get_attribute("href")
+                    enlaces_partidos.append(enlace)
             except NoSuchElementException:
-                print(f"Enlace no encontrado en la fila {i+1}.")
-            except TimeoutException:
-                print(f"Tiempo de espera agotado al cargar la información del partido en la fila {i+1}.")
-            except Exception as e:
-                print(f"Error procesando la fila {i+1}: {e}")
-
-    except TimeoutException:
-        print("No se pudo cargar la tabla de partidos.")
+                print("No se encontró un enlace válido en esta fila.")
     except Exception as e:
-        print(f"Error al extraer partidos: {e}")
+        print(f"Error al recolectar partidos: {e}")
+    return enlaces_partidos
 
+def obtener_liga(driver):
+    """
+    Extrae y devuelve la liga desde la página actual.
+    """
+    try:
+        liga_elemento = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "body > div.page > div.page-main > div.my-3.my-md-5 > div > nav > ol > li:nth-child(2) > a"))
+        )
+        liga_texto = liga_elemento.text.strip()
+        if not liga_texto:
+            print("Liga no encontrada.")
+            return None
+        print(f"Liga: {liga_texto}")
+        return liga_texto
+    except Exception as e:
+        print(f"Error al extraer la liga: {e}")
+        return None
+
+def obtener_minuto_juego(driver):
+    """
+    Extrae y devuelve el minuto de juego desde la página actual.
+    """
+    try:
+        minuto_juego_element = WebDriverWait(driver, 3).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div.row.justify-content-md-center.pt-3 > div.col-md-6.text-center > h1 > span > span:nth-child(4)")
+            )
+        )
+        minuto_juego = minuto_juego_element.text.strip()
+        if not minuto_juego:
+            print("Minuto de juego no encontrado.")
+            return None
+        print(f"Minuto: {minuto_juego}")
+        return minuto_juego
+    except TimeoutException:
+        print("Timeout al intentar extraer el minuto de juego.")
+        return None
+    except Exception as e:
+        print(f"Error al extraer el minuto de juego: {e}")
+        return None
+
+def procesar_partidos(driver):
+    """Procesa los partidos de interés, extrayendo información relevante."""
+    while True:
+        try:
+            driver.get(URL_MONITOR)
+            manejar_panel_cookies(driver)
+            WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.CSS_SELECTOR, "tbody")))
+            print("Página cargada correctamente.")
+
+            enlaces_partidos = recolectar_partidos_interes(driver)
+            print(f"Se encontraron {len(enlaces_partidos)} partidos de interés.")
+
+            for enlace in enlaces_partidos:
+                try:
+                    print(f"Accediendo al partido: {enlace}")
+                    driver.get(enlace)
+
+                    league = obtener_liga(driver)
+                    minuto_juego = obtener_minuto_juego(driver)
+
+                    if not league or not minuto_juego:
+                        print("Información insuficiente para procesar el partido. Saltando...")
+                        continue
+
+                    extraer_datos_tabla(driver)
+                    extraer_eventos(driver)
+
+                except TimeoutException:
+                    print("No se pudo cargar el contenido del partido.")
+                except Exception as e:
+                    print(f"Error al procesar el partido: {e}")
+
+            print("Procesados todos los partidos visibles. Recargando...")
+            time.sleep(5)
+
+        except TimeoutException:
+            print("No se pudo cargar la tabla de partidos.")
+        except Exception as e:
+            print(f"Error general: {e}")
 
 def main():
-
+    """Punto de entrada principal del script."""
     driver = inicializar_driver()
-
     try:
-        # URL de la página principal
-        driver.get(URL_MONITOR)
-
-        # Manejar cookies si es necesario
-        manejar_panel_cookies(driver)
-
-        # Extraer información de todos los partidos
-        extraer_info_partidos(driver)
-
+        procesar_partidos(driver)
     finally:
         driver.quit()
 
