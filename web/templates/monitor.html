@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/static/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Partidos</title>
+</head>
+<body>
+    <h1>Monitor de Partidos</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Liga</th>
+                <th>Minuto</th>
+                <th>Enlace</th>
+                <th>Cuotas</th>
+                <th>Estadísticas</th>
+                <th>Eventos</th>
+            </tr>
+        </thead>
+        <tbody id="tabla-partidos">
+            <!-- Los datos se llenarán dinámicamente aquí -->
+        </tbody>
+    </table>
+
+    <script>
+        async function cargarDatos() {
+            try {
+                const response = await fetch('/api/partidos'); // Llama a la API
+                const data = await response.json(); // Obtén los datos en formato JSON
+
+                const tbody = document.getElementById('tabla-partidos');
+                tbody.innerHTML = ''; // Limpia la tabla antes de actualizar
+
+                data.forEach(partido => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${partido.liga}</td>
+                        <td>${partido.minuto}</td>
+                        <td><a href="${partido.enlace}" target="_blank">Ver Partido</a></td>
+                        <td>
+                            Over: ${partido.cuotas.over}<br>
+                            Línea de Goles: ${partido.cuotas.linea_goles}<br>
+                            Less: ${partido.cuotas.less}
+                        </td>
+                        <td>
+                            ${partido.estadisticas.map(est => `
+                                <div>
+                                    ${est.tipo ? `<b>${est.tipo}:</b> Local: ${est.valor_local}, Visitante: ${est.valor_visitante}` : `
+                                    Local: ${est.equipo_local} (${est.jugador_local}),
+                                    Visitante: ${est.equipo_visitante} (${est.jugador_visitante})`}
+                                </div>
+                            `).join('')}
+                        </td>
+                        <td>
+                            ${partido.eventos.map(evento => `
+                                <div>${evento.descripcion} (${evento.equipo})</div>
+                            `).join('')}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error al cargar los datos:', error);
+            }
+        }
+
+        // Llama a la función cada 5 segundos
+        setInterval(cargarDatos, 500);
+
+        // Carga inicial
+        cargarDatos();
+    </script>
+</body>
+</html>
