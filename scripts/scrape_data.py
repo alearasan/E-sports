@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
-from database import setup_database, insert_match, insert_statistic, insert_event
+from scripts.database import setup_database, insert_match, insert_statistic, insert_event
 
 # Cargar variables de entorno
 load_dotenv()
