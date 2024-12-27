@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
-from database import setup_database, insert_match, insert_statistic, insert_event
+from scripts.database import setup_database, insert_match, insert_statistic, insert_event
 
 # Cargar variables de entorno
 load_dotenv()
@@ -21,7 +21,7 @@ def inicializar_driver():
 # Manejar el panel de cookies
 def manejar_panel_cookies(driver):
     try:
-        boton_cookies = WebDriverWait(driver, 10).until(
+        boton_cookies = WebDriverWait(driver, 1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "button.fc-button.fc-cta-consent.fc-primary-button"))
         )
         boton_cookies.click()
