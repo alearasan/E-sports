@@ -58,6 +58,11 @@ def setup_database():
 
 # Insertar un partido en la tabla Matches
 def insert_match(league, local_player, visitor_player, local_team, visitor_team, local_score, visitor_score, match_date):
+    # Validar que todos los campos no sean None
+    if None in (league, local_player, visitor_player, local_team, visitor_team, local_score, visitor_score, match_date):
+        print("Error: No se puede insertar el partido. Todos los campos son obligatorios.")
+        return None
+
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -87,6 +92,11 @@ def insert_match(league, local_player, visitor_player, local_team, visitor_team,
 
 # Insertar un evento en la tabla Events
 def insert_event(match_id, event_type, minute, team):
+    # Validar que todos los campos no sean None
+    if None in (match_id, event_type, minute, team):
+        print("Error: No se puede insertar el evento. Todos los campos son obligatorios.")
+        return None
+
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -112,6 +122,11 @@ def insert_event(match_id, event_type, minute, team):
 
 # Insertar una estadística en la tabla Statistics
 def insert_statistic(match_id, stat_type, local_value, visitor_value):
+    # Validar que todos los campos no sean None
+    if None in (match_id, stat_type, local_value, visitor_value):
+        print("Error: No se puede insertar la estadística. Todos los campos son obligatorios.")
+        return None
+
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -133,6 +148,7 @@ def insert_statistic(match_id, stat_type, local_value, visitor_value):
         print(f"Estadística duplicada detectada: {stat_type} ya existe para el partido {match_id}.")
     
     conn.close()
+
 
 
 # Consultar partidos desde la tabla Matches
