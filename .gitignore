@@ -25,4 +25,5 @@ pip-log.txt
 selenium-screenshot.png
 
 # Archivos que no deseas incluir manualmente
+branch_commit_policy.txt
 database/fifa_esports.db
