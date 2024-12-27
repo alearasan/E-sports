@@ -72,8 +72,8 @@ def extraer_eventos(driver):
         print(f"Error al extraer eventos: {e}")
 
 def recolectar_partidos_interes(driver):
-    """Recolecta enlaces de partidos de interés desde la página."""
-    enlaces_partidos = []
+    """Recolecta enlaces de partidos de interés desde la página y extrae cuotas asociadas."""
+    partidos = []
     try:
         filas = driver.find_elements(By.CSS_SELECTOR, "tbody > tr")
         for fila in filas:
@@ -81,12 +81,15 @@ def recolectar_partidos_interes(driver):
                 liga = fila.find_element(By.CSS_SELECTOR, "td.league_n > a").text.strip()
                 if liga in LIGAS_INTERES:
                     enlace = fila.find_element(By.CSS_SELECTOR, "td:nth-child(4) > a").get_attribute("href")
-                    enlaces_partidos.append(enlace)
+                    # Extraer cuotas desde la fila actual
+                    cuotas = extraer_cuotas_desde_fila(fila)
+
+                    partidos.append({"liga": liga, "enlace": enlace, "cuotas": cuotas})
             except NoSuchElementException:
                 print("No se encontró un enlace válido en esta fila.")
     except Exception as e:
         print(f"Error al recolectar partidos: {e}")
-    return enlaces_partidos
+    return partidos
 
 def obtener_liga(driver):
     """
@@ -129,6 +132,29 @@ def obtener_minuto_juego(driver):
         print(f"Error al extraer el minuto de juego: {e}")
         return None
 
+def extraer_cuotas_desde_fila(fila):
+    """
+    Extrae cuotas desde una fila de la tabla de partidos.
+    """
+    cuotas = {"over": None, "linea_goles": None, "less": None}
+    try:
+        elementos = fila.find_elements(By.CSS_SELECTOR, "[id^='o_']")
+        for elemento in elementos:
+            id_elemento = elemento.get_attribute("id")
+            texto_elemento = elemento.text.strip()
+
+            # Clasificar según el sufijo del ID
+            if id_elemento.endswith("_0"):
+                cuotas["over"] = texto_elemento
+            elif id_elemento.endswith("_1"):
+                cuotas["linea_goles"] = texto_elemento
+            elif id_elemento.endswith("_2"):
+                cuotas["less"] = texto_elemento
+
+    except Exception as e:
+        print(f"Error al extraer cuotas desde la fila: {e}")
+    return cuotas
+
 def procesar_partidos(driver):
     """Procesa los partidos de interés, extrayendo información relevante."""
     while True:
@@ -138,13 +164,15 @@ def procesar_partidos(driver):
             WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.CSS_SELECTOR, "tbody")))
             print("Página cargada correctamente.")
 
-            enlaces_partidos = recolectar_partidos_interes(driver)
-            print(f"Se encontraron {len(enlaces_partidos)} partidos de interés.")
+            partidos = recolectar_partidos_interes(driver)
+            print(f"Se encontraron {len(partidos)} partidos de interés.")
 
-            for enlace in enlaces_partidos:
+            for partido in partidos:
                 try:
-                    print(f"Accediendo al partido: {enlace}")
-                    driver.get(enlace)
+                    print(f"Accediendo al partido: {partido['enlace']}")
+                    print(f"Cuotas: {partido['cuotas']}")
+
+                    driver.get(partido['enlace'])
 
                     league = obtener_liga(driver)
                     minuto_juego = obtener_minuto_juego(driver)
