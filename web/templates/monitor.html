@@ -8,6 +8,7 @@
 </head>
 <body>
     <h1>Monitor de Partidos</h1>
+    <p>Tiempo de scraping: <span id="tiempo-scraping">0</span> segundos</p>
     <table>
         <thead>
             <tr>
@@ -30,10 +31,13 @@
                 const response = await fetch('/api/partidos'); // Llama a la API
                 const data = await response.json(); // Obtén los datos en formato JSON
 
+                // Actualiza el tiempo de scraping
+                document.getElementById('tiempo-scraping').textContent = data.duracion_scraping;
+
                 const tbody = document.getElementById('tabla-partidos');
                 tbody.innerHTML = ''; // Limpia la tabla antes de actualizar
 
-                data.forEach(partido => {
+                data.partidos.forEach(partido => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${partido.liga}</td>
@@ -66,7 +70,7 @@
             }
         }
 
-        // Llama a la función cada 5 segundos
+        // Llama a la función cada 2 segundos
         setInterval(cargarDatos, 500);
 
         // Carga inicial

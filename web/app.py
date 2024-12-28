@@ -6,14 +6,16 @@ app = Flask(__name__)
 
 # Variable global para almacenar los datos
 partidos_data = []
+duracion_scraping = 0
 
 def scraper_thread():
     """Hilo para ejecutar el scraper en segundo plano."""
     global partidos_data
+    global duracion_scraping
     driver = inicializar_driver()
     try:
         while True:
-            partidos_data = procesar_partidos(driver)
+            partidos_data, duracion_scraping = procesar_partidos(driver)
     finally:
         driver.quit()
 
@@ -25,7 +27,10 @@ def index():
 @app.route("/api/partidos")
 def api_partidos():
     """Ruta API para devolver los datos en formato JSON."""
-    return jsonify(partidos_data)
+    return jsonify({
+        "partidos": partidos_data,
+        "duracion_scraping": duracion_scraping
+    })
 
 if __name__ == "__main__":
     # Iniciar el hilo del scraper

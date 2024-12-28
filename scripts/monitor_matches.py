@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -188,6 +189,7 @@ def procesar_partidos(driver):
     """Procesa los partidos de interés y devuelve una lista con todos los datos extraídos."""
     resultados = []
     try:
+        inicio_scraping = time.time()  # Inicio del temporizador
         driver.get(URL_MONITOR)
         manejar_panel_cookies(driver)
 
@@ -215,9 +217,14 @@ def procesar_partidos(driver):
                 resultados.append(partido_data)
             except Exception as e:
                 print(f"Error al procesar el partido: {e}")
+
+        duracion_scraping = round(time.time() - inicio_scraping, 2)  # Fin del temporizador
+        print(f"Scraping completado en {duracion_scraping} segundos.")
+        return resultados, duracion_scraping
+    
     except Exception as e:
         print(f"Error general al procesar partidos: {e}")
-    return resultados
+        return resultados, 0
 
 
 def main():
