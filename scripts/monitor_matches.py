@@ -1,5 +1,5 @@
 import os
-import time
+import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -27,14 +27,14 @@ LIGAS_MINUTOS = {
 }
 
 def es_minuto_valido(minuto_texto, rango_minutos):
-    """Valida si el minuto es un número y está dentro del rango permitido."""
-    try:
-        minuto = int(minuto_texto)  # Intentar convertir el texto a número
+    """ Valida si el minuto es un número y está dentro del rango permitido."""
+    # Verificar si el texto es un número entero
+    if re.fullmatch(r"\d+", minuto_texto):
+        minuto = int(minuto_texto)
         return rango_minutos[0] <= minuto <= rango_minutos[1]
-    except ValueError:
-        # Si no se puede convertir a entero, no es un minuto válido
-        print(f"Minuto inválido detectado: {minuto_texto}")
-        return False
+    # Si no es un número, se considera inválido (puede ser una fecha/hora)
+    print(f"Minuto inválido detectado (fecha/hora): {minuto_texto}")
+    return False
 
 def obtener_liga(driver):
     """
@@ -80,7 +80,7 @@ def obtener_minuto_juego(driver):
 def extraer_datos_tabla(driver):
     """Extrae datos de la tabla del partido."""
     try:
-        tabla = WebDriverWait(driver, 3).until(
+        tabla = WebDriverWait(driver, 1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "table.table.table-sm > tbody"))
         )
         filas = tabla.find_elements(By.TAG_NAME, "tr")
@@ -92,12 +92,13 @@ def extraer_datos_tabla(driver):
                 if i == 0:  # Primera fila: equipo y jugador
                     local_team, local_player = separar_equipo_y_jugador(columnas[0].text.strip())
                     visitor_team, visitor_player = separar_equipo_y_jugador(columnas[2].text.strip())
-                    datos.append({
-                        "equipo_local": local_team,
-                        "jugador_local": local_player,
-                        "equipo_visitante": visitor_team,
-                        "jugador_visitante": visitor_player
-                    })
+                    if local_player is not None and visitor_player is not None:
+                        datos.append({
+                            "equipo_local": local_team,
+                            "jugador_local": local_player,
+                            "equipo_visitante": visitor_team,
+                            "jugador_visitante": visitor_player
+                        })
                 else:  # Filas de estadísticas
                     local_value = limpiar_valor(columnas[0].text.strip())
                     stat_type = columnas[1].text.strip()
@@ -120,7 +121,7 @@ def extraer_datos_tabla(driver):
 def extraer_eventos(driver):
     """Extrae los eventos de la página."""
     try:
-        eventos = WebDriverWait(driver, 3).until(
+        eventos = WebDriverWait(driver, 1).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.list-group > li"))
         )
         datos_eventos = []
