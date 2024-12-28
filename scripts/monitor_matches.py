@@ -14,7 +14,7 @@ def inicializar_driver():
     options = webdriver.ChromeOptions()
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--headless")  # Ejecuta el navegador en modo headless para mayor velocidad
+    #options.add_argument("--headless")  # Ejecuta el navegador en modo headless para mayor velocidad
     return webdriver.Chrome(options=options)
 
 # Cargar variables de entorno
@@ -23,8 +23,8 @@ URL_MONITOR = os.getenv("URL_MONITOR")
 
 # Ligas de interés y sus rangos de minutos
 LIGAS_MINUTOS = {
-    "Esoccer Battle - 8 mins play": (0, 8),
-    "Esoccer GT Leagues – 12 mins play": (0, 12)
+    "Esoccer Battle - 8 mins play": (-1, 8),
+    "Esoccer GT Leagues – 12 mins play": (-1, 12)
 }
 
 def es_minuto_valido(minuto_texto, rango_minutos):
