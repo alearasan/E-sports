@@ -21,7 +21,7 @@ def inicializar_driver():
 # Manejar el panel de cookies
 def manejar_panel_cookies(driver):
     try:
-        boton_cookies = WebDriverWait(driver, 10).until(
+        boton_cookies = WebDriverWait(driver, 1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "button.fc-button.fc-cta-consent.fc-primary-button"))
         )
         boton_cookies.click()
